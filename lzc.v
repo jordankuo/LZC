@@ -1,0 +1,2 @@
+module lzc();
+endmodule;

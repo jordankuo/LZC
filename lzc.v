@@ -14,7 +14,7 @@ module lzc(
 	reg [width-1 : 0] data_next;
 	reg [$clog2(width*word) : 0]  zeros_next;
 	reg [1:0] state, state_next;
-	reg Ovalid_next, reg_mode, finish_in;
+	reg Ovalid_next, reg_mode, finish_in, finish_d;
 	reg [$clog2(word)-1 : 0] counter_in, inc_in;
 	reg [$clog2(width)-1:0] counter_d, inc_d;
 	
@@ -25,13 +25,13 @@ module lzc(
 			Ovalid <= 0;
 			zeros <= 0;
 			finish_in <= 0;
-			counter_d <= width-1;
 			counter_in <= 0;
 		end else begin
 			state <= state_next;
 			Ovalid <= Ovalid_next;			
 			zeros <= zeros_next;
 			counter_in <= inc_in;
+			finish_in = finish_d;
 		end
 		
 		//fatch data
@@ -45,10 +45,18 @@ module lzc(
 	//lzc for a data
 	always @* begin
 		if(Ivalid && !finish_in) begin
-			if(data_next[counter_d] == 0 && counter_d > 0)begin
-				zeros_next = zeros + 1;
-				inc_d = counter_d - 1;
-			end else begin// data_next[counter_d] != 0 || counter_d == 0
+			for(counter_d=width-1; counter_d>=0; counter_d = counter_d -1) begin
+				if(data_next[counter_d] == 0)begin
+					zeros = zeros + 1;
+				end else
+					finish_d = 1;
+				end
+			end
+			
+			zeros = zeros_next;
+			inc_in = counter_in + 1;
+			
+		end else begin// data_next[counter_d] != 0 || counter_d == 0
 				inc_in = counter_in + 1;
 				if(counter_d == 0)begin
 					inc_d = width-1;

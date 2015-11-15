@@ -7,7 +7,13 @@ module stimulus;
 	wire Ovalid;
 	
 	
-	lzc LZC(clk, rst_n, data, Ivalid, mode, zeros, Ovalid,);
+	lzc LZC(.clk(clk), 
+			.rst_n(rst_n), 
+			.data(data), 
+			.Ivalid(Ivalid), 
+			.mode(mode),
+			.zeros(zeros), 
+			.Ovalid(Ovalid));
 	
 	always #(cyc/2) clk = ~clk;
 	
@@ -20,12 +26,27 @@ module stimulus;
 		clk = 1;
 		#(cyc) rst_n = 0;
 		#(cyc) rst_n = 1;
+		#(cyc) mode = 0;
 		
-		#(cyc) data = 8'b0000_0001;
+		#(cyc) data = 8'b0000_0000;
+		#(cyc) Ivalid = 1;
+		#(cyc*4) Ivalid = 0;
+		
+		#(cyc) data = 8'b0011_1111;
+		#(cyc*2) Ivalid = 1;
+		#(cyc) Ivalid = 0;
+		#(cyc) Ivalid = 1;
+		#(cyc) Ivalid = 0;
 		#(cyc) Ivalid = 1;
 		#(cyc) Ivalid = 0;
 		
-		#(cyc) data =8'b1111_1111;
+		#(cyc) data = 8'b0000_0000; Ivalid = 1;
+		#(cyc) data = 8'b0001_0000;
+		#(cyc) data = 8'b0011_1111;
+		#(cyc) data = 8'b1111_1111;
+		#(cyc) Ivalid = 0;
+		
+		
 		
 		#100;
 		$finish;

@@ -3,101 +3,106 @@ module lzc(
 	zeros, Ovalid,
 );
 	parameter width = 8, word = 4;
-	parameter IDLE = 1'b0, CALC = 1'b1;
+	parameter IDLE=2'b00, NORMAL=2'b01,TURBO=2'b10;
 	
-	input clk,rst_n,Ivalid,mode;
+	input clk;
+	input rst_n;
 	input [width-1 : 0] data;
+	input Ivalid;
+	input mode;
 	output reg [$clog2(width*word) : 0] zeros;
 	output reg Ovalid;
 	
-	reg [$clog2(width*word) : 0]  zeros_next;
+	reg [$clog2(width*word) : 0]  zeros_next,i;
 	reg [1:0] state, state_next;
-	reg Ovalid_next, reg_mode, finish_in, finish_d;
+	reg reg_mode;
+	reg [width-1 : 0] data_next;
 	reg [$clog2(word) : 0] counter_in, inc_in;
 	reg [$clog2(width):0] counter_d;
+	reg [width*word-1 : 0] sum;
 	
 	//main
 	always @(posedge clk, negedge rst_n) begin
 		if(!rst_n) begin
-			state <= IDLE;
 			Ovalid <= 0;
 			zeros <= 0;
-			zeros_next <= 0;
-			finish_in <= 0;
-			finish_d <= 0;
-			counter_d <= 0;
 			counter_in <= 0;
-			inc_in <= 0;
+			state <= IDLE;
+			data_next <= 0;
 		end else begin
-			state <= state_next;			
-			zeros <= zeros_next;
-			finish_in <= finish_d;
+			state <= state_next;
+			reg_mode <= mode;
 			counter_in <= inc_in;
+			data_next <= data;
 		end
 	end
 	
-	//lzc for a data
 	always @* begin
-		if(Ivalid) begin
-			inc_in = counter_in + 1;
-			if(!finish_in)begin
-				for(counter_d=0;counter_d<width;counter_d=counter_d+1)begin
-					if(data[width-1-counter_d] == 0)begin
-						zeros_next = zeros_next + 1;
-					end else begin
-						finish_d = 1;
+		if(Ivalid)begin
+			if(!reg_mode)begin//NORMAL
+				if(counter_in <= word -1)begin
+					for(counter_d=0;counter_d<width;counter_d=counter_d+1)begin
+						sum[width*word-1-counter_in*width-counter_d] = data_next[width-1-counter_d];
 					end
-				end
-			end else begin
-				if(inc_in == word)begin
-					finish_d = 1;
+					inc_in = counter_in + 1;
 				end else begin
-					finish_d = 0;
+					inc_in = counter_in;
 				end
+			end else begin//TURBO
+				
 			end
 		end else begin
-			inc_in = counter_in;
+			if(counter_in == word)begin
+				inc_in = 0;
+			end else begin
+				inc_in = counter_in;
+			end
 		end
 	end
 	
-	//FSM
 	always @* begin
-		reg_mode = 0;
-		
-		case(state)			
+		case(state)
 			IDLE: begin
 				Ovalid = 0;
-				zeros_next = 0;
-				if(Ivalid) begin
-					state_next = CALC;
+				if(Ivalid)begin
+					if(!reg_mode)begin//NORMAL
+						state_next = NORMAL;
+					end else begin//TURBO
+						state_next = TURBO;
+					end
 				end else begin
 					state_next = IDLE;
 				end
 			end
 			
-			CALC: begin
-				reg_mode = mode;
-				
-				if(!reg_mode) begin //Normal mode 
-					if(finish_in && counter_in == word) begin
-						Ovalid = 1;
-						finish_d = 0;
-						inc_in = 0;
-						state_next = IDLE;
+			NORMAL: begin
+				if(counter_in == word)begin
+					Ovalid = 1;
+					if(sum == 0)begin
+						zeros_next = width*word;
 					end else begin
-						state_next = CALC;
+						for(i=0;i<width*word;i=i+1)begin
+							if(sum[i])begin
+								zeros_next = width*word - 1 - i;
+							end else begin
+								zeros = zeros_next;
+							end
+						end
 					end
-				end else begin //Turbo mode
-					if(finish_in)begin
-						Ovalid = 1;
-						finish_d = 0;
-						inc_in = 0;
-						state_next = IDLE;
-					end else begin
-						state_next = CALC;
-					end
+					zeros = zeros_next;
+					state_next = IDLE;
+				end else begin
+					state_next = state;
 				end
-				
+			end
+			
+			TURBO: begin
+				if(Ovalid)begin
+					zeros = zeros_next;
+					state_next = IDLE;
+				end else begin
+					state_next = state;
+				end
 			end
 		endcase
 	end
